@@ -1,8 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../app_navigation.dart';
+import '../../services/cholera_voice.dart';
 
 enum CholeraEmotion { joy, surprise, grumpy, sleepy }
 
@@ -17,70 +18,85 @@ const choleraPhrases = {
 };
 
 class CholeraCharacter extends StatefulWidget {
-  const CholeraCharacter({super.key, this.size = 120});
+  const CholeraCharacter({super.key, this.size = 120, this.voice});
+  final CholeraVoice? voice;
   final double size;
   @override
   State<CholeraCharacter> createState() => _CholeraCharacterState();
 }
 
 class _CholeraCharacterState extends State<CholeraCharacter>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
   late final AnimationController _clock = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 6),
   )..repeat();
-  final FlutterTts _tts = FlutterTts();
+  late final CholeraVoice _voice = (widget.voice ?? CholeraVoice())
+    ..addListener(_changed);
+  ModalRoute<void>? _route;
   CholeraEmotion _emotion = CholeraEmotion.joy;
-  bool _muted = false, _speaking = false;
   int _phrase = 0;
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
-    SharedPreferences.getInstance().then((p) {
-      if (mounted) setState(() => _muted = p.getBool('choleraMuted') ?? false);
-    });
-    _tts.setStartHandler(() {
-      if (mounted) setState(() => _speaking = true);
-    });
-    _tts.setCompletionHandler(_stopMouth);
-    _tts.setCancelHandler(_stopMouth);
-    _tts.setErrorHandler((_) => _stopMouth());
+    WidgetsBinding.instance.addObserver(this);
+    _voice;
   }
 
-  void _stopMouth() {
-    if (mounted) setState(() => _speaking = false);
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != _route) {
+      appRouteObserver.unsubscribe(this);
+      _route = route;
+      if (route != null) appRouteObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPushNext() {
+    _voice.stop();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) {
+      _voice.stop();
+      _clock.stop();
+    } else {
+      _clock.repeat();
+    }
   }
 
   Future<void> _say() async {
+    if (_voice.active) {
+      await _voice.stop();
+      return;
+    }
     final phrases = choleraPhrases[_emotion]!;
     final text = phrases[_phrase++ % phrases.length];
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-    if (_muted) return;
-    try {
-      if (await _tts.isLanguageAvailable('uk-UA') != true) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Український голос не встановлено в системі. Фрази доступні текстом.',
-              ),
-            ),
-          );
-        }
-        return;
-      }
-      await _tts.setLanguage('uk-UA');
-      await _tts.setSpeechRate(0.45);
-      await _tts.speak(text);
-    } catch (_) {
-      _stopMouth();
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(content: Text(text)));
+    final issue = await _voice.say(text);
+    if (mounted && issue != null) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(content: Text(issue)));
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    appRouteObserver.unsubscribe(this);
+    _voice.removeListener(_changed);
+    _voice.dispose();
     _clock.dispose();
-    _tts.stop();
     super.dispose();
   }
 
@@ -99,7 +115,11 @@ class _CholeraCharacterState extends State<CholeraCharacter>
               width: widget.size,
               height: widget.size,
               child: CustomPaint(
-                painter: _CholeraPainter(_clock.value, _emotion, _speaking),
+                painter: _CholeraPainter(
+                  _clock.value,
+                  _emotion,
+                  _voice.speaking,
+                ),
               ),
             ),
           ),
@@ -109,15 +129,18 @@ class _CholeraCharacterState extends State<CholeraCharacter>
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            tooltip: _muted ? 'Увімкнути звук' : 'Вимкнути звук',
-            icon: Icon(_muted ? Icons.volume_off : Icons.volume_up),
-            onPressed: () async {
-              setState(() => _muted = !_muted);
-              await _tts.stop();
-              final p = await SharedPreferences.getInstance();
-              await p.setBool('choleraMuted', _muted);
-            },
+            tooltip: _voice.muted ? 'Увімкнути звук' : 'Вимкнути звук',
+            icon: Icon(_voice.muted ? Icons.volume_off : Icons.volume_up),
+            onPressed: () => _voice.setMuted(!_voice.muted),
           ),
+          if (_voice.active)
+            IconButton(
+              tooltip: 'Зупинити озвучення',
+              icon: const Icon(Icons.stop_circle_outlined),
+              onPressed: _voice.stop,
+              constraints: const BoxConstraints.tightFor(width: 32),
+              padding: EdgeInsets.zero,
+            ),
           PopupMenuButton<CholeraEmotion>(
             tooltip: 'Настрій Холери',
             icon: const Icon(Icons.face),

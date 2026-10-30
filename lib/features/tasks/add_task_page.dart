@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
+
 import 'package:image_picker/image_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:path_provider/path_provider.dart';
@@ -18,11 +20,13 @@ class AddTaskPage extends ConsumerStatefulWidget {
   ConsumerState<AddTaskPage> createState() => _AddTaskPageState();
 }
 
-class _AddTaskPageState extends ConsumerState<AddTaskPage> {
+class _AddTaskPageState extends ConsumerState<AddTaskPage>
+    with WidgetsBindingObserver {
   final _speech = SpeechToText();
   final _picker = ImagePicker();
   String? _photo;
   bool _listening = false;
+  bool _foreground = true;
   void message(String text) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
@@ -32,6 +36,7 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         final lost = await _picker.retrieveLostData();
@@ -55,8 +60,14 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
         imageQuality: 85,
       );
       if (f != null && mounted) setState(() => _photo = f.path);
+    } on PlatformException catch (error) {
+      message(
+        error.code.contains('access') || error.code.contains('permission')
+            ? 'Доступ до камери заборонено. Перевір дозволи системної камери в налаштуваннях Android. Справу можна зберегти без фото.'
+            : 'Не вдалося відкрити камеру. Перевір, чи встановлено застосунок камери. Справу можна зберегти без фото.',
+      );
     } catch (_) {
-      message('Камера недоступна або доступ заборонено.');
+      message('Камера недоступна. Справу можна зберегти без фото.');
     }
   }
 
@@ -70,8 +81,14 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
         onStatus: (s) {
           if (mounted) setState(() => _listening = s == 'listening');
         },
-        onError: (_) =>
-            message('Не вдалося розпізнати голос. Можна ввести справу вручну.'),
+        onError: (error) {
+          if (mounted) setState(() => _listening = false);
+          message(
+            error.errorMsg.contains('permission')
+                ? 'Доступ до мікрофона заборонено. Увімкни його в налаштуваннях Android → Застосунки → HomeBuddy → Дозволи, або введи справу вручну.'
+                : 'Не вдалося розпізнати голос. Спробуй ще раз або введи справу вручну.',
+          );
+        },
       );
       if (!ready) {
         message(
@@ -79,6 +96,7 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
         );
         return;
       }
+      if (!mounted || _saving || !_foreground) return;
       final locales = await _speech.locales();
       final ukrainian = locales
           .where((l) => l.localeId.startsWith('uk'))
@@ -87,10 +105,11 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
         message('Українську мову розпізнавання не встановлено в системі.');
         return;
       }
+      if (!mounted || _saving || !_foreground) return;
       await _speech.listen(
         listenOptions: SpeechListenOptions(localeId: ukrainian.localeId),
         onResult: (r) {
-          if (mounted) {
+          if (mounted && !_saving && _foreground) {
             setState(
               () => _titleController.text = r.recognizedWords.length > 120
                   ? r.recognizedWords.substring(0, 120)
@@ -111,8 +130,17 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
   bool _saving = false;
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (state != AppLifecycleState.resumed) {
+      _speech.cancel().catchError((Object _) {});
+    }
+  }
+
+  @override
   void dispose() {
-    _speech.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _speech.cancel().catchError((Object _) {});
     _titleController.dispose();
     super.dispose();
   }
@@ -152,13 +180,23 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
       return;
     }
     setState(() => _saving = true);
+    final title = _titleController.text.trim();
+    final category = _category;
+    final dueAt = _dueAt;
+    final photo = _photo;
+    final database = ref.read(databaseProvider);
+    try {
+      await _speech.cancel();
+    } catch (_) {
+      /* Save typed content even if recognizer stopped responding. */
+    }
     String? storedPhoto;
     try {
-      if (_photo != null) {
+      if (photo != null) {
         final dir = await getApplicationDocumentsDirectory();
         final target =
             '${dir.path}/task_${DateTime.now().microsecondsSinceEpoch}.jpg';
-        await File(_photo!).copy(target);
+        await File(photo).copy(target);
         storedPhoto = target;
       }
     } catch (_) {
@@ -166,13 +204,12 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
       if (mounted) setState(() => _saving = false);
       return;
     }
-    final database = ref.read(databaseProvider);
     int id;
     try {
       id = await database.addTask(
-        title: _titleController.text,
-        category: _category,
-        dueAt: _dueAt,
+        title: title,
+        category: category,
+        dueAt: dueAt,
         photoPath: storedPhoto,
       );
     } catch (_) {
@@ -181,15 +218,15 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
       if (mounted) setState(() => _saving = false);
       return;
     }
-    var reminderScheduled = _dueAt == null;
+    var reminderScheduled = dueAt == null;
     try {
-      if (_dueAt != null) {
+      if (dueAt != null) {
         final granted = await ReminderService.instance.requestPermission();
         if (granted) {
           await ReminderService.instance.schedule(
             taskId: id,
-            title: _titleController.text.trim(),
-            at: _dueAt!,
+            title: title,
+            at: dueAt,
           );
           reminderScheduled = true;
         }
@@ -202,7 +239,7 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Справу збережено. Нагадування не заплановане. Перевір дозволи сповіщень і свій розклад.',
+            'Справу збережено без сповіщення. Перевір Android → HomeBuddy → Сповіщення та дозволений час у розкладі.',
           ),
         ),
       );
@@ -243,7 +280,10 @@ class _AddTaskPageState extends ConsumerState<AddTaskPage> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _titleController,
-                autofocus: true,
+                autofocus: widget.mode != 'voice' && widget.mode != 'photo',
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _save(),
+                readOnly: _saving,
                 maxLength: 120,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(

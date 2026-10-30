@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'app_navigation.dart';
 import 'data/app_database.dart';
 import 'features/schedule/schedule_page.dart';
 import 'features/home/home_page.dart';
@@ -17,7 +18,8 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 });
 
 final routerProvider = Provider<GoRouter>((ref) {
-  return GoRouter(
+  final router = GoRouter(
+    observers: [appRouteObserver],
     routes: [
       GoRoute(
         path: '/schedule',
@@ -31,6 +33,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });
 
 Future<void> main() async {

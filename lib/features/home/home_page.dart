@@ -7,7 +7,12 @@ import 'package:go_router/go_router.dart';
 import '../../data/app_database.dart';
 import '../../main.dart';
 import '../../services/reminder_service.dart';
+import '../../services/task_actions.dart';
 import '../character/cholera_character.dart';
+
+final taskActionsProvider = Provider<TaskActions>(
+  (ref) => TaskActions(ref.watch(databaseProvider), ReminderService.instance),
+);
 
 final tasksProvider = StreamProvider<List<Task>>((ref) {
   return ref.watch(databaseProvider).watchTasks();
@@ -233,12 +238,21 @@ class _TaskTile extends ConsumerWidget {
         ),
         child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
       ),
-      onDismissed: (_) async {
-        await ReminderService.instance.cancel(task.id);
-        await ref.read(databaseProvider).deleteTask(task);
-        if (task.photoPath != null) {
-          final file = File(task.photoPath!);
-          if (await file.exists()) await file.delete();
+      confirmDismiss: (_) async {
+        try {
+          await ref.read(taskActionsProvider).delete(task);
+          return true;
+        } catch (_) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Не вдалося скасувати нагадування або видалити справу. Спробуй ще раз.',
+                ),
+              ),
+            );
+          }
+          return false;
         }
       },
       child: Container(
@@ -256,17 +270,8 @@ class _TaskTile extends ConsumerWidget {
               onChanged: (value) async {
                 try {
                   await ref
-                      .read(databaseProvider)
+                      .read(taskActionsProvider)
                       .setComplete(task, value ?? false);
-                  if (value == true) {
-                    await ReminderService.instance.cancel(task.id);
-                  } else if (task.dueAt != null) {
-                    await ReminderService.instance.schedule(
-                      taskId: task.id,
-                      title: task.title,
-                      at: DateTime.fromMillisecondsSinceEpoch(task.dueAt!),
-                    );
-                  }
                 } catch (_) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(

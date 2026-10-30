@@ -47,3 +47,10 @@ No paid AI API, Firebase, Google Maps API, or AdMob is configured.
 `assets/characters/cholera/` reserves the asset and animation structure.
 `CholeraCharacter` draws and animates the original character in Flutter. See its `README.md` and `manifest.json` before adding
 sprite sheets or choosing an animation runtime.
+
+## Physical Android testing
+
+See [the manual phone test plan](docs/PHYSICAL_ANDROID_TEST_PLAN.md),
+[stabilization results](docs/STABILIZATION_REPORT.md),
+[Android compatibility audit](docs/ANDROID_COMPATIBILITY.md), and
+[emulator screenshots](docs/screenshots/README.md).
