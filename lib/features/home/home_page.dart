@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -66,6 +68,14 @@ class HomePage extends ConsumerWidget {
                         ),
                       ),
                     ],
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => context.push('/schedule'),
+                      icon: const Icon(Icons.schedule),
+                      label: const Text('Мій розклад'),
+                    ),
                   ),
                   const SizedBox(height: 24),
                   const _BuddyCard(),
@@ -226,6 +236,10 @@ class _TaskTile extends ConsumerWidget {
       onDismissed: (_) async {
         await ReminderService.instance.cancel(task.id);
         await ref.read(databaseProvider).deleteTask(task);
+        if (task.photoPath != null) {
+          final file = File(task.photoPath!);
+          if (await file.exists()) await file.delete();
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
@@ -239,8 +253,30 @@ class _TaskTile extends ConsumerWidget {
             Checkbox.adaptive(
               value: task.isComplete,
               activeColor: const Color(0xFF537A67),
-              onChanged: (value) =>
-                  ref.read(databaseProvider).setComplete(task, value ?? false),
+              onChanged: (value) async {
+                try {
+                  await ref
+                      .read(databaseProvider)
+                      .setComplete(task, value ?? false);
+                  if (value == true) {
+                    await ReminderService.instance.cancel(task.id);
+                  } else if (task.dueAt != null) {
+                    await ReminderService.instance.schedule(
+                      taskId: task.id,
+                      title: task.title,
+                      at: DateTime.fromMillisecondsSinceEpoch(task.dueAt!),
+                    );
+                  }
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Не вдалося оновити нагадування.'),
+                      ),
+                    );
+                  }
+                }
+              },
             ),
             Expanded(
               child: Column(
@@ -258,6 +294,28 @@ class _TaskTile extends ConsumerWidget {
                           : const Color(0xFF273C33),
                     ),
                   ),
+                  if (task.photoPath != null)
+                    GestureDetector(
+                      onTap: () => showDialog(
+                        context: context,
+                        builder: (_) => Dialog(
+                          child: Image.file(
+                            File(task.photoPath!),
+                            errorBuilder: (_, _, _) =>
+                                const Text('Фото недоступне'),
+                          ),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Image.file(
+                          File(task.photoPath!),
+                          height: 64,
+                          errorBuilder: (_, _, _) =>
+                              const Icon(Icons.broken_image),
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 4),
                   Text(
                     [

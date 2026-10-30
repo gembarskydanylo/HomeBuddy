@@ -44,6 +44,13 @@ dependencies:
   flutter_timezone: ^5.1.1
   intl: ^0.20.3
   timezone: ^0.11.2
+  flutter_tts: ^4.2.5
+  shared_preferences: ^2.5.6
+  speech_to_text: ^7.5.0
+  image_picker: ^1.2.4
+  home_widget: ^0.10.0
+  quick_actions: ^1.1.1
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

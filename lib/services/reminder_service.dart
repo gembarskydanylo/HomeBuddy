@@ -1,4 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+import '../features/schedule/life_schedule.dart';
+
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -33,6 +36,8 @@ class ReminderService {
     required DateTime at,
   }) async {
     if (!at.isAfter(DateTime.now())) return;
+    final schedule = await LifeSchedule.load();
+    at = schedule.nextAllowed(at);
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         'home_buddy_reminders',
@@ -51,6 +56,9 @@ class ReminderService {
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
   }
+
+  Future<Set<int>> pendingIds() async =>
+      (await _plugin.pendingNotificationRequests()).map((n) => n.id).toSet();
 
   Future<void> cancel(int taskId) => _plugin.cancel(id: taskId);
 }

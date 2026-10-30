@@ -4,6 +4,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 part 'app_database.g.dart';
 
 class Tasks extends Table {
+  TextColumn get photoPath => text().nullable()();
   IntColumn get id => integer().autoIncrement()();
   TextColumn get title => text().withLength(min: 1, max: 120)();
   TextColumn get category => text().withDefault(const Constant('Дім'))();
@@ -18,7 +19,13 @@ class AppDatabase extends _$AppDatabase {
     : super(executor ?? driftDatabase(name: 'home_buddy'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) await m.addColumn(tasks, tasks.photoPath);
+    },
+  );
 
   Stream<List<Task>> watchTasks() =>
       (select(tasks)..orderBy([
@@ -32,10 +39,12 @@ class AppDatabase extends _$AppDatabase {
     required String title,
     required String category,
     DateTime? dueAt,
+    String? photoPath,
   }) {
     return into(tasks).insert(
       TasksCompanion.insert(
         title: title.trim(),
+        photoPath: Value(photoPath),
         category: Value(category),
         createdAt: DateTime.now().millisecondsSinceEpoch,
         dueAt: Value(dueAt?.millisecondsSinceEpoch),

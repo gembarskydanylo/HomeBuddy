@@ -1,6 +1,6 @@
 # Cholera character assets
 
-The Android MVP currently draws Cholera with a Flutter `CustomPainter` in
+The Android app draws and animates Cholera with a Flutter `CustomPainter` in
 `lib/features/character/cholera_character.dart`. This folder is the stable
 asset boundary for future artwork and animation files.
 

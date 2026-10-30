@@ -8,6 +8,17 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $TasksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _photoPathMeta = const VerificationMeta(
+    'photoPath',
+  );
+  @override
+  late final GeneratedColumn<String> photoPath = GeneratedColumn<String>(
+    'photo_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -83,6 +94,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
   );
   @override
   List<GeneratedColumn> get $columns => [
+    photoPath,
     id,
     title,
     category,
@@ -102,6 +114,12 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('photo_path')) {
+      context.handle(
+        _photoPathMeta,
+        photoPath.isAcceptableOrUnknown(data['photo_path']!, _photoPathMeta),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
@@ -148,6 +166,10 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
   Task map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Task(
+      photoPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}photo_path'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -182,6 +204,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
 }
 
 class Task extends DataClass implements Insertable<Task> {
+  final String? photoPath;
   final int id;
   final String title;
   final String category;
@@ -189,6 +212,7 @@ class Task extends DataClass implements Insertable<Task> {
   final int? dueAt;
   final bool isComplete;
   const Task({
+    this.photoPath,
     required this.id,
     required this.title,
     required this.category,
@@ -199,6 +223,9 @@ class Task extends DataClass implements Insertable<Task> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (!nullToAbsent || photoPath != null) {
+      map['photo_path'] = Variable<String>(photoPath);
+    }
     map['id'] = Variable<int>(id);
     map['title'] = Variable<String>(title);
     map['category'] = Variable<String>(category);
@@ -212,6 +239,9 @@ class Task extends DataClass implements Insertable<Task> {
 
   TasksCompanion toCompanion(bool nullToAbsent) {
     return TasksCompanion(
+      photoPath: photoPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(photoPath),
       id: Value(id),
       title: Value(title),
       category: Value(category),
@@ -229,6 +259,7 @@ class Task extends DataClass implements Insertable<Task> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Task(
+      photoPath: serializer.fromJson<String?>(json['photoPath']),
       id: serializer.fromJson<int>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       category: serializer.fromJson<String>(json['category']),
@@ -241,6 +272,7 @@ class Task extends DataClass implements Insertable<Task> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'photoPath': serializer.toJson<String?>(photoPath),
       'id': serializer.toJson<int>(id),
       'title': serializer.toJson<String>(title),
       'category': serializer.toJson<String>(category),
@@ -251,6 +283,7 @@ class Task extends DataClass implements Insertable<Task> {
   }
 
   Task copyWith({
+    Value<String?> photoPath = const Value.absent(),
     int? id,
     String? title,
     String? category,
@@ -258,6 +291,7 @@ class Task extends DataClass implements Insertable<Task> {
     Value<int?> dueAt = const Value.absent(),
     bool? isComplete,
   }) => Task(
+    photoPath: photoPath.present ? photoPath.value : this.photoPath,
     id: id ?? this.id,
     title: title ?? this.title,
     category: category ?? this.category,
@@ -267,6 +301,7 @@ class Task extends DataClass implements Insertable<Task> {
   );
   Task copyWithCompanion(TasksCompanion data) {
     return Task(
+      photoPath: data.photoPath.present ? data.photoPath.value : this.photoPath,
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
       category: data.category.present ? data.category.value : this.category,
@@ -281,6 +316,7 @@ class Task extends DataClass implements Insertable<Task> {
   @override
   String toString() {
     return (StringBuffer('Task(')
+          ..write('photoPath: $photoPath, ')
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('category: $category, ')
@@ -293,11 +329,12 @@ class Task extends DataClass implements Insertable<Task> {
 
   @override
   int get hashCode =>
-      Object.hash(id, title, category, createdAt, dueAt, isComplete);
+      Object.hash(photoPath, id, title, category, createdAt, dueAt, isComplete);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Task &&
+          other.photoPath == this.photoPath &&
           other.id == this.id &&
           other.title == this.title &&
           other.category == this.category &&
@@ -307,6 +344,7 @@ class Task extends DataClass implements Insertable<Task> {
 }
 
 class TasksCompanion extends UpdateCompanion<Task> {
+  final Value<String?> photoPath;
   final Value<int> id;
   final Value<String> title;
   final Value<String> category;
@@ -314,6 +352,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
   final Value<int?> dueAt;
   final Value<bool> isComplete;
   const TasksCompanion({
+    this.photoPath = const Value.absent(),
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.category = const Value.absent(),
@@ -322,6 +361,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.isComplete = const Value.absent(),
   });
   TasksCompanion.insert({
+    this.photoPath = const Value.absent(),
     this.id = const Value.absent(),
     required String title,
     this.category = const Value.absent(),
@@ -331,6 +371,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
   }) : title = Value(title),
        createdAt = Value(createdAt);
   static Insertable<Task> custom({
+    Expression<String>? photoPath,
     Expression<int>? id,
     Expression<String>? title,
     Expression<String>? category,
@@ -339,6 +380,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Expression<bool>? isComplete,
   }) {
     return RawValuesInsertable({
+      if (photoPath != null) 'photo_path': photoPath,
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (category != null) 'category': category,
@@ -349,6 +391,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
   }
 
   TasksCompanion copyWith({
+    Value<String?>? photoPath,
     Value<int>? id,
     Value<String>? title,
     Value<String>? category,
@@ -357,6 +400,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Value<bool>? isComplete,
   }) {
     return TasksCompanion(
+      photoPath: photoPath ?? this.photoPath,
       id: id ?? this.id,
       title: title ?? this.title,
       category: category ?? this.category,
@@ -369,6 +413,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (photoPath.present) {
+      map['photo_path'] = Variable<String>(photoPath.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -393,6 +440,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
   @override
   String toString() {
     return (StringBuffer('TasksCompanion(')
+          ..write('photoPath: $photoPath, ')
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('category: $category, ')
@@ -416,6 +464,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 }
 
 typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
+  Value<String?> photoPath,
   Value<int> id,
   required String title,
   Value<String> category,
@@ -424,6 +473,7 @@ typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
   Value<bool> isComplete,
 });
 typedef $$TasksTableUpdateCompanionBuilder = TasksCompanion Function({
+  Value<String?> photoPath,
   Value<int> id,
   Value<String> title,
   Value<String> category,
@@ -440,6 +490,11 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get photoPath => $composableBuilder(
+    column: $table.photoPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
@@ -480,6 +535,11 @@ class $$TasksTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get photoPath => $composableBuilder(
+    column: $table.photoPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -520,6 +580,9 @@ class $$TasksTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get photoPath =>
+      $composableBuilder(column: $table.photoPath, builder: (column) => column);
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -569,6 +632,7 @@ class $$TasksTableTableManager
               $$TasksTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String?> photoPath = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> category = const Value.absent(),
@@ -576,6 +640,7 @@ class $$TasksTableTableManager
                 Value<int?> dueAt = const Value.absent(),
                 Value<bool> isComplete = const Value.absent(),
               }) => TasksCompanion(
+                photoPath: photoPath,
                 id: id,
                 title: title,
                 category: category,
@@ -585,6 +650,7 @@ class $$TasksTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<String?> photoPath = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String title,
                 Value<String> category = const Value.absent(),
@@ -592,6 +658,7 @@ class $$TasksTableTableManager
                 Value<int?> dueAt = const Value.absent(),
                 Value<bool> isComplete = const Value.absent(),
               }) => TasksCompanion.insert(
+                photoPath: photoPath,
                 id: id,
                 title: title,
                 category: category,

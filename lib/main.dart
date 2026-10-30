@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'data/app_database.dart';
+import 'features/schedule/schedule_page.dart';
 import 'features/home/home_page.dart';
 import 'features/tasks/add_task_page.dart';
 import 'services/reminder_service.dart';
+import 'services/capture_entrypoints.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
   final database = AppDatabase();
@@ -17,10 +19,15 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     routes: [
+      GoRoute(
+        path: '/schedule',
+        builder: (context, state) => const SchedulePage(),
+      ),
       GoRoute(path: '/', builder: (context, state) => const HomePage()),
       GoRoute(
         path: '/tasks/new',
-        builder: (context, state) => const AddTaskPage(),
+        builder: (context, state) =>
+            AddTaskPage(mode: state.uri.queryParameters['mode']),
       ),
     ],
   );
@@ -29,7 +36,14 @@ final routerProvider = Provider<GoRouter>((ref) {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ReminderService.instance.initialize();
-  runApp(const ProviderScope(child: HomeBuddyApp()));
+  final container = ProviderContainer();
+  runApp(
+    UncontrolledProviderScope(
+      container: container,
+      child: const HomeBuddyApp(),
+    ),
+  );
+  await CaptureEntrypoints.initialize(container.read(routerProvider));
 }
 
 class HomeBuddyApp extends ConsumerWidget {

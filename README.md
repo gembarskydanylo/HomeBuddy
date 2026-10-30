@@ -34,22 +34,16 @@ The MVP uses:
 | `flutter_local_notifications` | `^22.3.3` | scheduled local reminders |
 | `flutter_timezone` / `timezone` | `^5.1.1` / `^0.11.2` | device-local reminder times |
 
-The following are compatible candidates for later features and are intentionally
-not dependencies until those flows are implemented:
-
-| Package | Current stable candidate | Potential feature |
-| --- | --- | --- |
-| `flutter_tts` | `^4.2.5` | Cholera reads tasks aloud |
-| `speech_to_text` | `^7.5.0` | voice task entry |
-| `image_picker` | `^1.2.4` | choose a profile or character image |
-| `home_widget` | `^0.10.0` | Android home-screen widget |
-| `quick_actions` | `^1.1.1` | Android launcher shortcuts |
+Quick Capture now uses `speech_to_text ^7.5.0`, `image_picker ^1.2.4`,
+`home_widget ^0.10.0`, and `quick_actions ^1.1.1`. Cholera uses
+`flutter_tts ^4.2.5`; local preferences use `shared_preferences ^2.5.6`.
+No registration is required. See `docs/DEVELOPMENT_REPORT.md` for behavior,
+validation scope, and platform requirements.
 
 No paid AI API, Firebase, Google Maps API, or AdMob is configured.
 
 ## Cholera artwork
 
 `assets/characters/cholera/` reserves the asset and animation structure.
-Until a sprite or animation is supplied, `CholeraCharacter` draws the MVP
-placeholder in Flutter. See its `README.md` and `manifest.json` before adding
+`CholeraCharacter` draws and animates the original character in Flutter. See its `README.md` and `manifest.json` before adding
 sprite sheets or choosing an animation runtime.

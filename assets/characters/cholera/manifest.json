@@ -4,9 +4,9 @@
   "canvas": { "width": 120, "height": 120 },
   "anchor": { "x": 0.5, "y": 1.0 },
   "animations": {
-    "idle": { "status": "placeholder", "loop": true },
+    "idle": { "status": "flutter_painter", "loop": true },
     "cheer": { "status": "planned", "loop": false },
     "listening": { "status": "planned", "loop": true }
   },
-  "note": "MVP fallback is drawn in Flutter; no external animation is wired yet."
+  "note": "Blink, gaze, emotions, mouth and gestures are rendered in Flutter. External sprite animations remain optional."
 }
