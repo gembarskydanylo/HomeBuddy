@@ -1,0 +1,12 @@
+{
+  "character": "Cholera",
+  "version": 1,
+  "canvas": { "width": 120, "height": 120 },
+  "anchor": { "x": 0.5, "y": 1.0 },
+  "animations": {
+    "idle": { "status": "placeholder", "loop": true },
+    "cheer": { "status": "planned", "loop": false },
+    "listening": { "status": "planned", "loop": true }
+  },
+  "note": "MVP fallback is drawn in Flutter; no external animation is wired yet."
+}
