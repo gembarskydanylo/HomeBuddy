@@ -119,6 +119,8 @@ List<ProProfile> matchProfessionals(
   return professionals.where((pro) {
     if (pro.id.isEmpty || !pro.acceptingJobs ||
         (requireVerified && pro.verification != ProVerification.verified) ||
+        pro.verification == ProVerification.rejected ||
+        pro.verification == ProVerification.suspended ||
         !pro.specialties.contains(request.specialty) ||
         !pro.serviceAreas.any((area) => area.includes(request.location))) {
       return false;
